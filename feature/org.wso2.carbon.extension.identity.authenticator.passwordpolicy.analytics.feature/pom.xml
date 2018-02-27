@@ -32,6 +32,9 @@
     <artifactId>org.wso2.carbon.extension.identity.authenticator.passwordpolicy.analytics.feature</artifactId>
     <version>1.0.5-SNAPSHOT</version>
     <packaging>pom</packaging>
+    <name>WSO2 Carbon Extension - Password Policy - Analytics Feature</name>
+    <url>http://wso2.org</url>
+    <description>Password Policy Feature for Analytics</description>
 
     <build>
         <plugins>
@@ -51,9 +54,9 @@
                                     <directory>resources</directory>
                                     <includes>
                                         <include>p2.inf</include>
-                                        <include>templates/Password-Rotation-Policy-Notifications.xml</include>
-                                        <include>PasswordRotationPolicy-Publisher-email-ExpiredPasswords-1.0.0.xml</include>
-                                        <include>../${project.build.directory}/password_rotation_policy-1.0.0.car</include>
+                                        <include>templates/password-policy-notifications.xml</include>
+                                        <include>PasswordPolicy-Publisher-email-ExpiredPasswords-1.0.0.xml</include>
+                                        <include>../${project.build.directory}/password_policy-1.0.0.car</include>
                                     </includes>
                                 </resource>
                             </resources>

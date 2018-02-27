@@ -23,26 +23,26 @@ import org.wso2.carbon.identity.application.mgt.ApplicationManagementService;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 
 /**
- * The data holder for the password reset enforcer.
+ * The data holder for the password policy.
  */
-public class PasswordResetEnforcerDataHolder {
-    private static PasswordResetEnforcerDataHolder instance;
+public class PasswordPolicyDataHolder {
+    private static PasswordPolicyDataHolder instance;
 
     private EventStreamService eventStreamService;
     private IdentityGovernanceService identityGovernanceService;
     private ApplicationManagementService applicationManagementService;
 
-    private PasswordResetEnforcerDataHolder() {     // Prevent instantiation
+    private PasswordPolicyDataHolder() {     // Prevent instantiation
     }
 
     /**
-     * Return a singleton instance of the PasswordResetEnforcerDataHolder
+     * Return a singleton instance of the PasswordPolicyDataHolder
      *
-     * @return A singleton instance of the PasswordResetEnforcerDataHolder
+     * @return A singleton instance of the PasswordPolicyDataHolder
      */
-    public static PasswordResetEnforcerDataHolder getInstance() {
+    public static PasswordPolicyDataHolder getInstance() {
         if (instance == null) {
-            instance = new PasswordResetEnforcerDataHolder();
+            instance = new PasswordPolicyDataHolder();
         }
         return instance;
     }

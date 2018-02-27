@@ -18,14 +18,14 @@
   -->
 
 <artifacts>
-    <artifact name="password-rotation-policy-analytics-capp" version="1.0.5-SNAPSHOT" type="carbon/application">
-        <dependency artifact="PasswordChangesEventReceiver" version="1.0.0" include="true"
+    <artifact name="password-policy-analytics-capp" version="1.0.5-SNAPSHOT" type="carbon/application">
+        <dependency artifact="PendingNotificationsEventReceiver" version="1.0.0" include="true"
                     serverRole="ComplexEventProcessor"/>
-        <dependency artifact="ExpiredPasswordsEventStream" version="1.0.0" include="true"
+        <dependency artifact="NotificationsEventStream" version="1.0.0" include="true"
                     serverRole="ComplexEventProcessor"/>
-        <dependency artifact="PasswordChangesEventStream" version="1.0.0" include="true"
+        <dependency artifact="PendingNotificationsEventStream" version="1.0.0" include="true"
                     serverRole="ComplexEventProcessor"/>
-        <dependency artifact="PasswordChangesEventSink" version="1.0.0" include="true"
+        <dependency artifact="PendingNotificationsEventSink" version="1.0.0" include="true"
                     serverRole="DataAnalyticsServer"/>
     </artifact>
 </artifacts>

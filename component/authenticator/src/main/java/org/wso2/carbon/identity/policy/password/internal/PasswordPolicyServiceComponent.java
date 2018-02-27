@@ -29,7 +29,7 @@ import org.wso2.carbon.identity.application.mgt.ApplicationManagementService;
 import org.wso2.carbon.identity.event.handler.AbstractEventHandler;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.governance.common.IdentityConnectorConfig;
-import org.wso2.carbon.identity.policy.password.PasswordChangeEnforcerOnExpiration;
+import org.wso2.carbon.identity.policy.password.PasswordResetEnforcer;
 import org.wso2.carbon.identity.policy.password.PasswordChangeHandler;
 
 /**
@@ -44,8 +44,8 @@ import org.wso2.carbon.identity.policy.password.PasswordChangeHandler;
  * interface="org.wso2.carbon.identity.application.mgt.ApplicationManagementService" cardinality="1..1"
  * policy="dynamic" bind="setApplicationManagementService" unbind="unsetApplicationManagementService"
  */
-public class PasswordResetEnforcerServiceComponent {
-    private static Log log = LogFactory.getLog(PasswordResetEnforcerServiceComponent.class);
+public class PasswordPolicyServiceComponent {
+    private static Log log = LogFactory.getLog(PasswordPolicyServiceComponent.class);
 
     /**
      * Activate the application authenticator and user operation event listener event components
@@ -59,7 +59,7 @@ public class PasswordResetEnforcerServiceComponent {
 
             // Register the connector to enforce password change upon expiration.
             bundleContext.registerService(ApplicationAuthenticator.class.getName(),
-                    new PasswordChangeEnforcerOnExpiration(), null);
+                    new PasswordResetEnforcer(), null);
 
             // Register the listener to capture password change events.
             bundleContext.registerService(AbstractEventHandler.class.getName(), passwordChangeHandler, null);
@@ -67,10 +67,10 @@ public class PasswordResetEnforcerServiceComponent {
             // Register the connector config to render the resident identity provider configurations
             bundleContext.registerService(IdentityConnectorConfig.class.getName(), passwordChangeHandler, null);
             if (log.isDebugEnabled()) {
-                log.debug("PasswordChangeEnforcerOnExpiration handler is activated");
+                log.debug("PasswordResetEnforcer handler is activated");
             }
         } catch (Throwable e) {
-            log.fatal("Error while activating the PasswordChangeEnforcerOnExpiration handler ", e);
+            log.fatal("Error while activating the PasswordResetEnforcer handler ", e);
         }
     }
 
@@ -81,31 +81,31 @@ public class PasswordResetEnforcerServiceComponent {
      */
     protected void deactivate(ComponentContext ctxt) {
         if (log.isDebugEnabled()) {
-            log.debug("PasswordChangeEnforcerOnExpiration is deactivated");
+            log.debug("PasswordResetEnforcer is deactivated");
         }
     }
 
     protected void setEventStreamService(EventStreamService eventStreamService) {
-        PasswordResetEnforcerDataHolder.getInstance().setEventStreamService(eventStreamService);
+        PasswordPolicyDataHolder.getInstance().setEventStreamService(eventStreamService);
     }
 
     protected void unsetEventStreamService(EventStreamService eventStreamService) {
-        PasswordResetEnforcerDataHolder.getInstance().setEventStreamService(null);
+        PasswordPolicyDataHolder.getInstance().setEventStreamService(null);
     }
 
     protected void setIdentityGovernanceService(IdentityGovernanceService idpManager) {
-        PasswordResetEnforcerDataHolder.getInstance().setIdentityGovernanceService(idpManager);
+        PasswordPolicyDataHolder.getInstance().setIdentityGovernanceService(idpManager);
     }
 
     protected void unsetIdentityGovernanceService(IdentityGovernanceService idpManager) {
-        PasswordResetEnforcerDataHolder.getInstance().setIdentityGovernanceService(null);
+        PasswordPolicyDataHolder.getInstance().setIdentityGovernanceService(null);
     }
 
     protected void setApplicationManagementService(ApplicationManagementService applicationManagementService) {
-        PasswordResetEnforcerDataHolder.getInstance().setApplicationManagementService(applicationManagementService);
+        PasswordPolicyDataHolder.getInstance().setApplicationManagementService(applicationManagementService);
     }
 
     protected void unsetApplicationManagementService(ApplicationManagementService applicationManagementService) {
-        PasswordResetEnforcerDataHolder.getInstance().setApplicationManagementService(null);
+        PasswordPolicyDataHolder.getInstance().setApplicationManagementService(null);
     }
 }

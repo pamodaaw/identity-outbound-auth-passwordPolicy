@@ -5,11 +5,11 @@ org.eclipse.equinox.p2.touchpoint.natives.mkdir(path:${installFolder}/../../depl
 org.eclipse.equinox.p2.touchpoint.natives.mkdir(path:${installFolder}/../../deployment/server/eventpublishers/);\
 org.eclipse.equinox.p2.touchpoint.natives.mkdir(path:${installFolder}/../../template-manager/);\
 org.eclipse.equinox.p2.touchpoint.natives.mkdir(path:${installFolder}/../../template-manager/domain-template/);\
-org.eclipse.equinox.p2.touchpoint.natives.copy(source:${installFolder}/../features/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.connector_${feature.version}/password_rotation_policy-1.0.0.car,target:${installFolder}/../../deployment/server/carbonapps/password_rotation_policy-1.0.0.car,overwrite:true);\
-org.eclipse.equinox.p2.touchpoint.natives.copy(source:${installFolder}/../features/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.connector_${feature.version}/PasswordRotationPolicy-Publisher-email-ExpiredPasswords-1.0.0.xml,target:${installFolder}/../../conf/deployment/server/eventpublishers/PasswordRotationPolicy-Publisher-email-ExpiredPasswords-1.0.0.xml,overwrite:true);\
-org.eclipse.equinox.p2.touchpoint.natives.copy(source:${installFolder}/../features/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.connector_${feature.version}/password-rotation-policy-notifications.xml,target:${installFolder}/../../conf/template-manager/domain-template/password-rotation-policy-notifications.xml,overwrite:true);\
+org.eclipse.equinox.p2.touchpoint.natives.copy(source:${installFolder}/../features/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.connector_${feature.version}/password_policy-1.0.0.car,target:${installFolder}/../../deployment/server/carbonapps/password_policy-1.0.0.car,overwrite:true);\
+org.eclipse.equinox.p2.touchpoint.natives.copy(source:${installFolder}/../features/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.connector_${feature.version}/PasswordPolicy-Publisher-email-Notifications-1.0.0.xml,target:${installFolder}/../../conf/deployment/server/eventpublishers/PasswordPolicy-Publisher-email-Notifications-1.0.0.xml,overwrite:true);\
+org.eclipse.equinox.p2.touchpoint.natives.copy(source:${installFolder}/../features/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.connector_${feature.version}/password-policy-notifications.xml,target:${installFolder}/../../conf/template-manager/domain-template/password-policy-notifications.xml,overwrite:true);\
 
 instructions.uninstall = \
-org.eclipse.equinox.p2.touchpoint.natives.remove(path:${installFolder}/../../deployment/server/carbonapps/password_rotation_policy-1.0.0.car,overwrite:true);\
-org.eclipse.equinox.p2.touchpoint.natives.remove(path:${installFolder}/../../deployment/server/eventpublishers/PasswordRotationPolicy-Publisher-email-ExpiredPasswords-1.0.0.xml,overwrite:true);\
-org.eclipse.equinox.p2.touchpoint.natives.remove(path:${installFolder}/../../conf/template-manager/domain-template/password-rotation-policy-notifications.xml,overwrite:true);\
+org.eclipse.equinox.p2.touchpoint.natives.remove(path:${installFolder}/../../deployment/server/carbonapps/password_policy-1.0.0.car,overwrite:true);\
+org.eclipse.equinox.p2.touchpoint.natives.remove(path:${installFolder}/../../deployment/server/eventpublishers/PasswordPolicy-Publisher-email-Notifications-1.0.0.xml,overwrite:true);\
+org.eclipse.equinox.p2.touchpoint.natives.remove(path:${installFolder}/../../conf/template-manager/domain-template/password-policy-notifications.xml,overwrite:true);\

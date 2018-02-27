@@ -17,7 +17,7 @@
   ~ under the License.
   -->
 
-<artifact name="PasswordChangesEventReceiver" version="1.0.0" type="event/receiver"
+<artifact name="PendingNotificationsEventReceiver" version="1.0.0" type="event/receiver"
           serverRole="ComplexEventProcessor">
-    <file>PasswordRotationPolicy-Receiver-wso2event-PasswordChanges-1.0.0.xml</file>
+    <file>PasswordPolicy-Receiver-wso2event-PendingNotifications-1.0.0.xml</file>
 </artifact>

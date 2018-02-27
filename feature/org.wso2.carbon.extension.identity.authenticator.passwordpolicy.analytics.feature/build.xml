@@ -20,10 +20,10 @@
 <project name="create-sample-capps" default="zip" basedir="resources">
     <property name="target_dir" value="target"/>
     <property name="capp_base" value="resources/capp"/>
-    <property name="password_rotation_policy_capp" value="password_rotation_policy-1.0.0"/>
+    <property name="password_policy_capp" value="password_policy"/>
 
     <target name="zip">
-        <zip destfile="${target_dir}/${password_rotation_policy_capp}.car">
+        <zip destfile="${target_dir}/${password_policy_capp}.car">
             <zipfileset dir="${capp_base}"/>
         </zip>
     </target>

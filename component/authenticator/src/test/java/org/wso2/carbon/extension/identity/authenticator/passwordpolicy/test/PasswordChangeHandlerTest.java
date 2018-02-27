@@ -44,9 +44,10 @@ import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.event.bean.ModuleConfiguration;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
-import org.wso2.carbon.identity.policy.password.PasswordChangeEnforceConstants;
+import org.wso2.carbon.identity.policy.password.PasswordPolicyConstants;
 import org.wso2.carbon.identity.policy.password.PasswordChangeHandler;
-import org.wso2.carbon.identity.policy.password.internal.PasswordResetEnforcerDataHolder;
+import org.wso2.carbon.identity.policy.password.PasswordPolicyUtils;
+import org.wso2.carbon.identity.policy.password.internal.PasswordPolicyDataHolder;
 import org.wso2.carbon.user.api.RealmConfiguration;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserRealm;
@@ -68,7 +69,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
-@PrepareForTest({IdentityTenantUtil.class, IdentityUtil.class})
+@PrepareForTest({IdentityTenantUtil.class, IdentityUtil.class, PasswordPolicyUtils.class})
 public class PasswordChangeHandlerTest {
     private PasswordChangeHandler passwordChangeHandler;
 
@@ -87,12 +88,16 @@ public class PasswordChangeHandlerTest {
     @Mock
     private ApplicationManagementService applicationManagementService;
 
+    private static final String TENANT_DOMAIN = "carbon.super";
+    private static final int TENANT_ID = -1234;
+    private static final String USERNAME = "user";
+
     @BeforeMethod
     public void setUp() {
         passwordChangeHandler = new PasswordChangeHandler();
         initMocks(this);
-        PasswordResetEnforcerDataHolder.getInstance().setEventStreamService(eventStreamService);
-        PasswordResetEnforcerDataHolder.getInstance().setApplicationManagementService(applicationManagementService);
+        PasswordPolicyDataHolder.getInstance().setEventStreamService(eventStreamService);
+        PasswordPolicyDataHolder.getInstance().setApplicationManagementService(applicationManagementService);
     }
 
     @Test
@@ -100,51 +105,24 @@ public class PasswordChangeHandlerTest {
             throws UserStoreException, IdentityApplicationManagementException {
         mockStatic(IdentityTenantUtil.class);
         mockStatic(IdentityUtil.class);
+        mockStatic(PasswordPolicyUtils.class);
 
-        when(IdentityTenantUtil.getTenantId("carbon.super")).thenReturn(-1234);
+        when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
         when(IdentityTenantUtil.getRealmService()).thenReturn(realmService);
-        when(realmService.getTenantUserRealm(-1234)).thenReturn(userRealm);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
         when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
 
         RealmConfiguration realmConfig = new RealmConfiguration();
-        realmConfig.getUserStoreProperties().put("DomainName", "domain");
+        realmConfig.getUserStoreProperties().put("DomainName", TENANT_DOMAIN);
         when(userStoreManager.getRealmConfiguration()).thenReturn(realmConfig);
 
-        ApplicationBasicInfo applicationBasicInfo = mock(ApplicationBasicInfo.class);
-        when(applicationBasicInfo.getApplicationName()).thenReturn("testApp");
-        ApplicationBasicInfo[] allApplicationBasicInfos = new ApplicationBasicInfo[]{applicationBasicInfo};
-        when(applicationManagementService.getAllApplicationBasicInfo("carbon.super", "user"))
-                .thenReturn(allApplicationBasicInfos);
-
-        ServiceProvider serviceProvider = mock(ServiceProvider.class);
-        LocalAndOutboundAuthenticationConfig localAndOutboundAuthenticationConfig =
-                mock(LocalAndOutboundAuthenticationConfig.class);
-        AuthenticationStep authenticationStep = mock(AuthenticationStep.class);
-        LocalAuthenticatorConfig localAuthenticatorConfig = mock(LocalAuthenticatorConfig.class);
-        when(localAuthenticatorConfig.getName())
-                .thenReturn(PasswordChangeEnforceConstants.AUTHENTICATOR_NAME);
-        when(authenticationStep.getLocalAuthenticatorConfigs())
-                .thenReturn(new LocalAuthenticatorConfig[]{localAuthenticatorConfig});
-        when(localAndOutboundAuthenticationConfig.getAuthenticationSteps())
-                .thenReturn(new AuthenticationStep[]{authenticationStep});
-        when(serviceProvider.getLocalAndOutBoundAuthenticationConfig())
-                .thenReturn(localAndOutboundAuthenticationConfig);
-        when(applicationManagementService.getApplicationExcludingFileBasedSPs("testApp", "carbon.super"))
-                .thenReturn(serviceProvider);
-
-        IdentityEventListenerConfig identityEventListenerConfig = mock(IdentityEventListenerConfig.class);
-        Properties properties = new Properties();
-        properties.setProperty(PasswordChangeEnforceConstants.DATA_PUBLISHING_ENABLED_PROPERTY_NAME, "true");
-        when(identityEventListenerConfig.getProperties()).thenReturn(properties);
-        when(IdentityUtil.readEventListenerProperty(
-                PasswordChangeEnforceConstants.IDENTITY_MESSAGE_HANDLER_TYPE,
-                PasswordChangeHandler.class.getName()
-        )).thenReturn(identityEventListenerConfig);
+        when(PasswordPolicyUtils.getIdentityEventProperty(TENANT_DOMAIN,
+                PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING)).thenReturn("true");
 
         Event event = new Event("POST_UPDATE_CREDENTIAL_BY_ADMIN");
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, "user");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, USERNAME);
         event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_STORE_MANAGER, userStoreManager);
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, "carbon.super");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, TENANT_DOMAIN);
 
         try {
             passwordChangeHandler.handleEvent(event);   // Shouldn't throw user store exception
@@ -153,7 +131,7 @@ public class PasswordChangeHandlerTest {
         }
 
         verify(userStoreManager, times(1))
-                .setUserClaimValues(eq("user"), Matchers.<Map<String, String>>any(), isNull(String.class));
+                .setUserClaimValues(eq(USERNAME), Matchers.<Map<String, String>>any(), isNull(String.class));
         verify(eventStreamService, times(1)).publish(any(org.wso2.carbon.databridge.commons.Event.class));
     }
 
@@ -162,10 +140,11 @@ public class PasswordChangeHandlerTest {
             throws UserStoreException, IdentityApplicationManagementException {
         mockStatic(IdentityTenantUtil.class);
         mockStatic(IdentityUtil.class);
+        mockStatic(PasswordPolicyUtils.class);
 
-        when(IdentityTenantUtil.getTenantId("carbon.super")).thenReturn(-1234);
+        when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
         when(IdentityTenantUtil.getRealmService()).thenReturn(realmService);
-        when(realmService.getTenantUserRealm(-1234)).thenReturn(userRealm);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
         when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
 
         RealmConfiguration realmConfig = new RealmConfiguration();
@@ -175,38 +154,16 @@ public class PasswordChangeHandlerTest {
         ApplicationBasicInfo applicationBasicInfo = mock(ApplicationBasicInfo.class);
         when(applicationBasicInfo.getApplicationName()).thenReturn("testApp");
         ApplicationBasicInfo[] allApplicationBasicInfos = new ApplicationBasicInfo[]{applicationBasicInfo};
-        when(applicationManagementService.getAllApplicationBasicInfo("carbon.super", "user"))
+        when(applicationManagementService.getAllApplicationBasicInfo(TENANT_DOMAIN, USERNAME))
                 .thenReturn(allApplicationBasicInfos);
 
-        ServiceProvider serviceProvider = mock(ServiceProvider.class);
-        LocalAndOutboundAuthenticationConfig localAndOutboundAuthenticationConfig =
-                mock(LocalAndOutboundAuthenticationConfig.class);
-        AuthenticationStep authenticationStep = mock(AuthenticationStep.class);
-        LocalAuthenticatorConfig localAuthenticatorConfig = mock(LocalAuthenticatorConfig.class);
-        when(localAuthenticatorConfig.getName())
-                .thenReturn(PasswordChangeEnforceConstants.AUTHENTICATOR_NAME);
-        when(authenticationStep.getLocalAuthenticatorConfigs())
-                .thenReturn(new LocalAuthenticatorConfig[]{localAuthenticatorConfig});
-        when(localAndOutboundAuthenticationConfig.getAuthenticationSteps())
-                .thenReturn(new AuthenticationStep[]{authenticationStep});
-        when(serviceProvider.getLocalAndOutBoundAuthenticationConfig())
-                .thenReturn(localAndOutboundAuthenticationConfig);
-        when(applicationManagementService.getApplicationExcludingFileBasedSPs("testApp", "carbon.super"))
-                .thenReturn(serviceProvider);
-
-        IdentityEventListenerConfig identityEventListenerConfig = mock(IdentityEventListenerConfig.class);
-        Properties properties = new Properties();
-        properties.setProperty(PasswordChangeEnforceConstants.DATA_PUBLISHING_ENABLED_PROPERTY_NAME, "true");
-        when(identityEventListenerConfig.getProperties()).thenReturn(properties);
-        when(IdentityUtil.readEventListenerProperty(
-                PasswordChangeEnforceConstants.IDENTITY_MESSAGE_HANDLER_TYPE,
-                PasswordChangeHandler.class.getName()
-        )).thenReturn(identityEventListenerConfig);
+        when(PasswordPolicyUtils.getIdentityEventProperty(TENANT_DOMAIN,
+                PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING)).thenReturn("true");
 
         Event event = new Event("POST_UPDATE_CREDENTIAL");
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, "user");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, USERNAME);
         event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_STORE_MANAGER, userStoreManager);
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, "carbon.super");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, TENANT_DOMAIN);
 
         try {
             passwordChangeHandler.handleEvent(event);   // Shouldn't throw user store exception
@@ -215,7 +172,7 @@ public class PasswordChangeHandlerTest {
         }
 
         verify(userStoreManager, times(1))
-                .setUserClaimValues(eq("user"), Matchers.<Map<String, String>>any(), isNull(String.class));
+                .setUserClaimValues(eq(USERNAME), Matchers.<Map<String, String>>any(), isNull(String.class));
         verify(eventStreamService, times(1)).publish(any(org.wso2.carbon.databridge.commons.Event.class));
     }
 
@@ -223,10 +180,11 @@ public class PasswordChangeHandlerTest {
     public void testHandleAddUserEvent() throws UserStoreException, IdentityApplicationManagementException {
         mockStatic(IdentityTenantUtil.class);
         mockStatic(IdentityUtil.class);
+        mockStatic(PasswordPolicyUtils.class);
 
-        when(IdentityTenantUtil.getTenantId("carbon.super")).thenReturn(-1234);
+        when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
         when(IdentityTenantUtil.getRealmService()).thenReturn(realmService);
-        when(realmService.getTenantUserRealm(-1234)).thenReturn(userRealm);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
         when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
 
         RealmConfiguration realmConfig = new RealmConfiguration();
@@ -236,38 +194,16 @@ public class PasswordChangeHandlerTest {
         ApplicationBasicInfo applicationBasicInfo = mock(ApplicationBasicInfo.class);
         when(applicationBasicInfo.getApplicationName()).thenReturn("testApp");
         ApplicationBasicInfo[] allApplicationBasicInfos = new ApplicationBasicInfo[]{applicationBasicInfo};
-        when(applicationManagementService.getAllApplicationBasicInfo("carbon.super", "user"))
+        when(applicationManagementService.getAllApplicationBasicInfo(TENANT_DOMAIN, USERNAME))
                 .thenReturn(allApplicationBasicInfos);
 
-        ServiceProvider serviceProvider = mock(ServiceProvider.class);
-        LocalAndOutboundAuthenticationConfig localAndOutboundAuthenticationConfig =
-                mock(LocalAndOutboundAuthenticationConfig.class);
-        AuthenticationStep authenticationStep = mock(AuthenticationStep.class);
-        LocalAuthenticatorConfig localAuthenticatorConfig = mock(LocalAuthenticatorConfig.class);
-        when(localAuthenticatorConfig.getName())
-                .thenReturn(PasswordChangeEnforceConstants.AUTHENTICATOR_NAME);
-        when(authenticationStep.getLocalAuthenticatorConfigs())
-                .thenReturn(new LocalAuthenticatorConfig[]{localAuthenticatorConfig});
-        when(localAndOutboundAuthenticationConfig.getAuthenticationSteps())
-                .thenReturn(new AuthenticationStep[]{authenticationStep});
-        when(serviceProvider.getLocalAndOutBoundAuthenticationConfig())
-                .thenReturn(localAndOutboundAuthenticationConfig);
-        when(applicationManagementService.getApplicationExcludingFileBasedSPs("testApp", "carbon.super"))
-                .thenReturn(serviceProvider);
-
-        IdentityEventListenerConfig identityEventListenerConfig = mock(IdentityEventListenerConfig.class);
-        Properties properties = new Properties();
-        properties.setProperty(PasswordChangeEnforceConstants.DATA_PUBLISHING_ENABLED_PROPERTY_NAME, "true");
-        when(identityEventListenerConfig.getProperties()).thenReturn(properties);
-        when(IdentityUtil.readEventListenerProperty(
-                PasswordChangeEnforceConstants.IDENTITY_MESSAGE_HANDLER_TYPE,
-                PasswordChangeHandler.class.getName()
-        )).thenReturn(identityEventListenerConfig);
+        when(PasswordPolicyUtils.getIdentityEventProperty(TENANT_DOMAIN,
+                PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING)).thenReturn("true");
 
         Event event = new Event("POST_UPDATE_CREDENTIAL");
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, "user");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, USERNAME);
         event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_STORE_MANAGER, userStoreManager);
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, "carbon.super");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, TENANT_DOMAIN);
 
         try {
             passwordChangeHandler.handleEvent(event);   // Shouldn't throw user store exception
@@ -276,18 +212,19 @@ public class PasswordChangeHandlerTest {
         }
 
         verify(userStoreManager, times(1))
-                .setUserClaimValues(eq("user"), Matchers.<Map<String, String>>any(), isNull(String.class));
+                .setUserClaimValues(eq(USERNAME), Matchers.<Map<String, String>>any(), isNull(String.class));
         verify(eventStreamService, times(1)).publish(any(org.wso2.carbon.databridge.commons.Event.class));
     }
 
     @Test
-    public void testHandleAddUserEventWithoutAuthenticatorApplied() throws UserStoreException, IdentityApplicationManagementException {
+    public void testHandleAddUserEventWithDataPublishingDisabled() throws UserStoreException, IdentityApplicationManagementException {
         mockStatic(IdentityTenantUtil.class);
         mockStatic(IdentityUtil.class);
+        mockStatic(PasswordPolicyUtils.class);
 
-        when(IdentityTenantUtil.getTenantId("carbon.super")).thenReturn(-1234);
+        when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
         when(IdentityTenantUtil.getRealmService()).thenReturn(realmService);
-        when(realmService.getTenantUserRealm(-1234)).thenReturn(userRealm);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
         when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
 
         RealmConfiguration realmConfig = new RealmConfiguration();
@@ -297,38 +234,16 @@ public class PasswordChangeHandlerTest {
         ApplicationBasicInfo applicationBasicInfo = mock(ApplicationBasicInfo.class);
         when(applicationBasicInfo.getApplicationName()).thenReturn("testApp");
         ApplicationBasicInfo[] allApplicationBasicInfos = new ApplicationBasicInfo[]{applicationBasicInfo};
-        when(applicationManagementService.getAllApplicationBasicInfo("carbon.super", "user"))
+        when(applicationManagementService.getAllApplicationBasicInfo(TENANT_DOMAIN, USERNAME))
                 .thenReturn(allApplicationBasicInfos);
 
-        ServiceProvider serviceProvider = mock(ServiceProvider.class);
-        LocalAndOutboundAuthenticationConfig localAndOutboundAuthenticationConfig =
-                mock(LocalAndOutboundAuthenticationConfig.class);
-        AuthenticationStep authenticationStep = mock(AuthenticationStep.class);
-        LocalAuthenticatorConfig localAuthenticatorConfig = mock(LocalAuthenticatorConfig.class);
-        when(localAuthenticatorConfig.getName())
-                .thenReturn("basic");
-        when(authenticationStep.getLocalAuthenticatorConfigs())
-                .thenReturn(new LocalAuthenticatorConfig[]{localAuthenticatorConfig});
-        when(localAndOutboundAuthenticationConfig.getAuthenticationSteps())
-                .thenReturn(new AuthenticationStep[]{authenticationStep});
-        when(serviceProvider.getLocalAndOutBoundAuthenticationConfig())
-                .thenReturn(localAndOutboundAuthenticationConfig);
-        when(applicationManagementService.getApplicationExcludingFileBasedSPs("testApp", "carbon.super"))
-                .thenReturn(serviceProvider);
-
-        IdentityEventListenerConfig identityEventListenerConfig = mock(IdentityEventListenerConfig.class);
-        Properties properties = new Properties();
-        properties.setProperty(PasswordChangeEnforceConstants.DATA_PUBLISHING_ENABLED_PROPERTY_NAME, "true");
-        when(identityEventListenerConfig.getProperties()).thenReturn(properties);
-        when(IdentityUtil.readEventListenerProperty(
-                PasswordChangeEnforceConstants.IDENTITY_MESSAGE_HANDLER_TYPE,
-                PasswordChangeHandler.class.getName()
-        )).thenReturn(identityEventListenerConfig);
+        when(PasswordPolicyUtils.getIdentityEventProperty(TENANT_DOMAIN,
+                PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING)).thenReturn("false");
 
         Event event = new Event("POST_UPDATE_CREDENTIAL");
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, "user");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, USERNAME);
         event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_STORE_MANAGER, userStoreManager);
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, "carbon.super");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, TENANT_DOMAIN);
 
         try {
             passwordChangeHandler.handleEvent(event);   // Shouldn't throw user store exception
@@ -336,8 +251,8 @@ public class PasswordChangeHandlerTest {
             Assert.fail("The authenticator failed the authentication flow");
         }
 
-        verify(userStoreManager, times(0))
-                .setUserClaimValues(eq("user"), Matchers.<Map<String, String>>any(), isNull(String.class));
+        verify(userStoreManager, times(1))
+                .setUserClaimValues(eq(USERNAME), Matchers.<Map<String, String>>any(), isNull(String.class));
         verify(eventStreamService, times(0)).publish(any(org.wso2.carbon.databridge.commons.Event.class));
     }
 
@@ -346,10 +261,11 @@ public class PasswordChangeHandlerTest {
             throws UserStoreException, IdentityApplicationManagementException {
         mockStatic(IdentityTenantUtil.class);
         mockStatic(IdentityUtil.class);
+        mockStatic(PasswordPolicyUtils.class);
 
-        when(IdentityTenantUtil.getTenantId("carbon.super")).thenReturn(-1234);
+        when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
         when(IdentityTenantUtil.getRealmService()).thenReturn(realmService);
-        when(realmService.getTenantUserRealm(-1234)).thenReturn(userRealm);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
         when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
 
         RealmConfiguration realmConfig = new RealmConfiguration();
@@ -359,55 +275,29 @@ public class PasswordChangeHandlerTest {
         ApplicationBasicInfo applicationBasicInfo = mock(ApplicationBasicInfo.class);
         when(applicationBasicInfo.getApplicationName()).thenReturn("testApp");
         ApplicationBasicInfo[] allApplicationBasicInfos = new ApplicationBasicInfo[]{applicationBasicInfo};
-        when(applicationManagementService.getAllApplicationBasicInfo("carbon.super", "user"))
+        when(applicationManagementService.getAllApplicationBasicInfo(TENANT_DOMAIN, USERNAME))
                 .thenReturn(allApplicationBasicInfos);
 
-        ServiceProvider serviceProvider = mock(ServiceProvider.class);
-        LocalAndOutboundAuthenticationConfig localAndOutboundAuthenticationConfig =
-                mock(LocalAndOutboundAuthenticationConfig.class);
-        AuthenticationStep authenticationStep = mock(AuthenticationStep.class);
-        LocalAuthenticatorConfig localAuthenticatorConfig = mock(LocalAuthenticatorConfig.class);
-        when(localAuthenticatorConfig.getName())
-                .thenReturn(PasswordChangeEnforceConstants.AUTHENTICATOR_NAME);
-        when(authenticationStep.getLocalAuthenticatorConfigs())
-                .thenReturn(new LocalAuthenticatorConfig[]{localAuthenticatorConfig});
-        when(localAndOutboundAuthenticationConfig.getAuthenticationSteps())
-                .thenReturn(new AuthenticationStep[]{authenticationStep});
-        when(serviceProvider.getLocalAndOutBoundAuthenticationConfig())
-                .thenReturn(localAndOutboundAuthenticationConfig);
-        when(applicationManagementService.getApplicationExcludingFileBasedSPs("testApp", "carbon.super"))
-                .thenReturn(serviceProvider);
-
-        doThrow(org.wso2.carbon.user.core.UserStoreException.class)
-                .when(userStoreManager)
-                .setUserClaimValues(eq("user"), Matchers.<Map<String, String>>any(), isNull(String.class));
-
-        IdentityEventListenerConfig identityEventListenerConfig = mock(IdentityEventListenerConfig.class);
-        Properties properties = new Properties();
-        properties.setProperty(PasswordChangeEnforceConstants.DATA_PUBLISHING_ENABLED_PROPERTY_NAME, "true");
-        when(identityEventListenerConfig.getProperties()).thenReturn(properties);
-        when(IdentityUtil.readEventListenerProperty(
-                PasswordChangeEnforceConstants.IDENTITY_MESSAGE_HANDLER_TYPE,
-                PasswordChangeHandler.class.getName()
-        )).thenReturn(identityEventListenerConfig);
+        when(PasswordPolicyUtils.getIdentityEventProperty(TENANT_DOMAIN,
+                PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING)).thenReturn("true");
 
         Event event = new Event("POST_UPDATE_CREDENTIAL");
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, "user");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, USERNAME);
         event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_STORE_MANAGER, userStoreManager);
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, "carbon.super");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, TENANT_DOMAIN);
 
         doThrow(new org.wso2.carbon.user.core.UserStoreException()).when(userStoreManager)
-                .setUserClaimValues(eq("user"), Matchers.<Map<String, String>>any(), isNull(String.class));
+                .setUserClaimValues(eq(USERNAME), Matchers.<Map<String, String>>any(), isNull(String.class));
 
         try {
             passwordChangeHandler.handleEvent(event);   // Shouldn't throw user store exception
-        } catch (IdentityEventException e) {
-            Assert.fail("The authenticator failed the authentication flow");
+            Assert.fail("The authenticator expected to fail the password change if user claim update failed.");
+        } catch (IdentityEventException ignored) {
         }
 
         verify(userStoreManager, times(1))
-                .setUserClaimValues(eq("user"), Matchers.<Map<String, String>>any(), isNull(String.class));
-        verify(eventStreamService, times(1)).publish(any(org.wso2.carbon.databridge.commons.Event.class));
+                .setUserClaimValues(eq(USERNAME), Matchers.<Map<String, String>>any(), isNull(String.class));
+        verify(eventStreamService, times(0)).publish(any(org.wso2.carbon.databridge.commons.Event.class));
     }
 
     @Test
@@ -415,10 +305,11 @@ public class PasswordChangeHandlerTest {
             throws UserStoreException, IdentityApplicationManagementException {
         mockStatic(IdentityTenantUtil.class);
         mockStatic(IdentityUtil.class);
+        mockStatic(PasswordPolicyUtils.class);
 
-        when(IdentityTenantUtil.getTenantId("carbon.super")).thenReturn(-1234);
+        when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
         when(IdentityTenantUtil.getRealmService()).thenReturn(realmService);
-        when(realmService.getTenantUserRealm(-1234)).thenReturn(userRealm);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
         when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
 
         RealmConfiguration realmConfig = new RealmConfiguration();
@@ -428,46 +319,20 @@ public class PasswordChangeHandlerTest {
         ApplicationBasicInfo applicationBasicInfo = mock(ApplicationBasicInfo.class);
         when(applicationBasicInfo.getApplicationName()).thenReturn("testApp");
         ApplicationBasicInfo[] allApplicationBasicInfos = new ApplicationBasicInfo[]{applicationBasicInfo};
-        when(applicationManagementService.getAllApplicationBasicInfo("carbon.super", "user"))
+        when(applicationManagementService.getAllApplicationBasicInfo(TENANT_DOMAIN, USERNAME))
                 .thenReturn(allApplicationBasicInfos);
 
-        ServiceProvider serviceProvider = mock(ServiceProvider.class);
-        LocalAndOutboundAuthenticationConfig localAndOutboundAuthenticationConfig =
-                mock(LocalAndOutboundAuthenticationConfig.class);
-        AuthenticationStep authenticationStep = mock(AuthenticationStep.class);
-        LocalAuthenticatorConfig localAuthenticatorConfig = mock(LocalAuthenticatorConfig.class);
-        when(localAuthenticatorConfig.getName())
-                .thenReturn(PasswordChangeEnforceConstants.AUTHENTICATOR_NAME);
-        when(authenticationStep.getLocalAuthenticatorConfigs())
-                .thenReturn(new LocalAuthenticatorConfig[]{localAuthenticatorConfig});
-        when(localAndOutboundAuthenticationConfig.getAuthenticationSteps())
-                .thenReturn(new AuthenticationStep[]{authenticationStep});
-        when(serviceProvider.getLocalAndOutBoundAuthenticationConfig())
-                .thenReturn(localAndOutboundAuthenticationConfig);
-        when(applicationManagementService.getApplicationExcludingFileBasedSPs("testApp", "carbon.super"))
-                .thenReturn(serviceProvider);
-
-        doThrow(org.wso2.carbon.user.core.UserStoreException.class)
-                .when(userStoreManager)
-                .getUserClaimValue(eq("user@carbon.super"), eq(PasswordChangeEnforceConstants.EMAIL_ADDRESS_CLAIM), isNull(String.class));
-
-        IdentityEventListenerConfig identityEventListenerConfig = mock(IdentityEventListenerConfig.class);
-        Properties properties = new Properties();
-        properties.setProperty(PasswordChangeEnforceConstants.DATA_PUBLISHING_ENABLED_PROPERTY_NAME, "true");
-        when(identityEventListenerConfig.getProperties()).thenReturn(properties);
-        when(IdentityUtil.readEventListenerProperty(
-                PasswordChangeEnforceConstants.IDENTITY_MESSAGE_HANDLER_TYPE,
-                PasswordChangeHandler.class.getName()
-        )).thenReturn(identityEventListenerConfig);
+        when(PasswordPolicyUtils.getIdentityEventProperty(TENANT_DOMAIN,
+                PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING)).thenReturn("true");
 
         Event event = new Event("POST_UPDATE_CREDENTIAL");
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, "user");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_NAME, USERNAME);
         event.getEventProperties().put(IdentityEventConstants.EventProperty.USER_STORE_MANAGER, userStoreManager);
-        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, "carbon.super");
+        event.getEventProperties().put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, TENANT_DOMAIN);
 
         doThrow(new org.wso2.carbon.user.core.UserStoreException()).when(userStoreManager)
-                .getUserClaimValue(eq(MultitenantUtils.getTenantAwareUsername("user")),
-                        eq(PasswordChangeEnforceConstants.EMAIL_ADDRESS_CLAIM), isNull(String.class));
+                .getUserClaimValue(eq(MultitenantUtils.getTenantAwareUsername(USERNAME)),
+                        eq(PasswordPolicyConstants.EMAIL_ADDRESS_CLAIM), isNull(String.class));
 
         try {
             passwordChangeHandler.handleEvent(event);   // Shouldn't throw user store exception
@@ -475,33 +340,33 @@ public class PasswordChangeHandlerTest {
             Assert.fail("The authenticator failed the authentication flow");
         }
 
-        verify(userStoreManager, times(1)).getUserClaimValue(eq(MultitenantUtils.getTenantAwareUsername("user")),
-                eq(PasswordChangeEnforceConstants.EMAIL_ADDRESS_CLAIM), isNull(String.class));
+        verify(userStoreManager, times(1)).getUserClaimValue(eq(MultitenantUtils.getTenantAwareUsername(USERNAME)),
+                eq(PasswordPolicyConstants.EMAIL_ADDRESS_CLAIM), isNull(String.class));
         verify(eventStreamService, times(1)).publish(any(org.wso2.carbon.databridge.commons.Event.class));
     }
 
     @Test
     public void testGetName() {
         Assert.assertEquals(passwordChangeHandler.getName(),
-                PasswordChangeEnforceConstants.PASSWORD_CHANGE_EVENT_HANDLER_NAME);
+                PasswordPolicyConstants.PASSWORD_CHANGE_EVENT_HANDLER_NAME);
     }
 
     @Test
     public void testGetFriendlyName() {
         Assert.assertEquals(passwordChangeHandler.getFriendlyName(),
-                PasswordChangeEnforceConstants.CONNECTOR_CONFIG_FRIENDLY_NAME);
+                PasswordPolicyConstants.CONNECTOR_CONFIG_FRIENDLY_NAME);
     }
 
     @Test
     public void testGetCategory() {
         Assert.assertEquals(passwordChangeHandler.getCategory(),
-                PasswordChangeEnforceConstants.CONNECTOR_CONFIG_CATEGORY);
+                PasswordPolicyConstants.CONNECTOR_CONFIG_CATEGORY);
     }
 
     @Test
     public void testGetSubCategory() {
         Assert.assertEquals(passwordChangeHandler.getSubCategory(),
-                PasswordChangeEnforceConstants.CONNECTOR_CONFIG_SUB_CATEGORY);
+                PasswordPolicyConstants.CONNECTOR_CONFIG_SUB_CATEGORY);
     }
 
     @Test
@@ -512,28 +377,46 @@ public class PasswordChangeHandlerTest {
     @Test
     public void testGetPropertyNameMapping() {
         Map<String, String> propertyNameMapping = passwordChangeHandler.getPropertyNameMapping();
-        Assert.assertEquals(propertyNameMapping.size(), 1);
+        Assert.assertEquals(propertyNameMapping.size(), 3);
         Assert.assertEquals(
-                propertyNameMapping.get(PasswordChangeEnforceConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS),
-                PasswordChangeEnforceConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS_DISPLAYED_NAME
+                propertyNameMapping.get(PasswordPolicyConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS),
+                PasswordPolicyConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS_DISPLAYED_NAME
+        );
+        Assert.assertEquals(
+                propertyNameMapping.get(PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING),
+                PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING_DISPLAYED_NAME
+        );
+        Assert.assertEquals(
+                propertyNameMapping.get(PasswordPolicyConstants.CONNECTOR_CONFIG_PRIOR_NOTICE_TIME_IN_DAYS),
+                PasswordPolicyConstants.CONNECTOR_CONFIG_PRIOR_NOTICE_TIME_IN_DAYS_DISPLAYED_NAME
         );
     }
 
     @Test
     public void testGetPropertyDescriptionMapping() {
         Map<String, String> propertyDescriptionMapping = passwordChangeHandler.getPropertyDescriptionMapping();
-        Assert.assertEquals(propertyDescriptionMapping.size(), 1);
+        Assert.assertEquals(propertyDescriptionMapping.size(), 3);
         Assert.assertEquals(
-                propertyDescriptionMapping.get(PasswordChangeEnforceConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS),
-                PasswordChangeEnforceConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS_DESCRIPTION
+                propertyDescriptionMapping.get(PasswordPolicyConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS),
+                PasswordPolicyConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS_DESCRIPTION
+        );
+        Assert.assertEquals(
+                propertyDescriptionMapping.get(PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING),
+                PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING_DESCRIPTION
+        );
+        Assert.assertEquals(
+                propertyDescriptionMapping.get(PasswordPolicyConstants.CONNECTOR_CONFIG_PRIOR_NOTICE_TIME_IN_DAYS),
+                PasswordPolicyConstants.CONNECTOR_CONFIG_PRIOR_NOTICE_TIME_IN_DAYS_DESCRIPTION
         );
     }
 
     @Test
     public void testGetPropertyNames() {
         String[] propertyNames = passwordChangeHandler.getPropertyNames();
-        Assert.assertEquals(propertyNames.length, 1);
-        Assert.assertEquals(propertyNames[0], PasswordChangeEnforceConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS);
+        Assert.assertEquals(propertyNames.length, 3);
+        Assert.assertEquals(propertyNames[0], PasswordPolicyConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS);
+        Assert.assertEquals(propertyNames[1], PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING);
+        Assert.assertEquals(propertyNames[2], PasswordPolicyConstants.CONNECTOR_CONFIG_PRIOR_NOTICE_TIME_IN_DAYS);
     }
 
     @Test
@@ -541,22 +424,30 @@ public class PasswordChangeHandlerTest {
         ModuleConfiguration moduleConfiguration = mock(ModuleConfiguration.class);
         Whitebox.setInternalState(passwordChangeHandler, "configs", moduleConfiguration);
         Properties moduleProperties = new Properties();
-        moduleProperties.setProperty(PasswordChangeEnforceConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS, "13");
+        moduleProperties.setProperty(PasswordPolicyConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS, "13");
         when(moduleConfiguration.getModuleProperties()).thenReturn(moduleProperties);
 
-        Properties defaultPropertyValues = passwordChangeHandler.getDefaultPropertyValues("carbon.super");
-        Assert.assertEquals(defaultPropertyValues.size(), 1);
+        Properties defaultPropertyValues = passwordChangeHandler.getDefaultPropertyValues(TENANT_DOMAIN);
+        Assert.assertEquals(defaultPropertyValues.size(), 3);
         Assert.assertEquals(
-                defaultPropertyValues.get(PasswordChangeEnforceConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS),
-                "13"
+                defaultPropertyValues.get(PasswordPolicyConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS),
+                PasswordPolicyConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS_DEFAULT_VALUE
+        );
+        Assert.assertEquals(
+                defaultPropertyValues.get(PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING),
+                PasswordPolicyConstants.CONNECTOR_CONFIG_ENABLE_DATA_PUBLISHING_DEFAULT_VALUE
+        );
+        Assert.assertEquals(
+                defaultPropertyValues.get(PasswordPolicyConstants.CONNECTOR_CONFIG_PRIOR_NOTICE_TIME_IN_DAYS),
+                PasswordPolicyConstants.CONNECTOR_CONFIG_PRIOR_NOTICE_TIME_IN_DAYS_DEFAULT_VALUE
         );
     }
 
     @Test
     public void testGetDefaultPropertyValuesWithPropertyNames() throws IdentityGovernanceException {
         Assert.assertNull(passwordChangeHandler.getDefaultPropertyValues(
-                new String[]{PasswordChangeEnforceConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS},
-                "carbon.super"
+                new String[]{PasswordPolicyConstants.CONNECTOR_CONFIG_PASSWORD_EXPIRY_IN_DAYS},
+                TENANT_DOMAIN
         ));
     }
 

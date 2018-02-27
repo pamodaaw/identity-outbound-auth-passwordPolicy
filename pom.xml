@@ -29,22 +29,14 @@
     <artifactId>org.wso2.carbon.extension.identity.authenticator.passwordpolicy</artifactId>
     <version>1.0.5-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>WSO2 Carbon Extension - PasswordPolicy Pom</name>
+    <name>WSO2 Carbon Extension - Password Policy</name>
     <url>http://wso2.org</url>
 
-    <profiles>
-        <profile>
-            <id>default</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <modules>
-                <module>component/authenticator</module>
-                <module>feature/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.analytics.feature</module>
-                <module>feature/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.feature</module>
-            </modules>
-        </profile>
-    </profiles>
+    <modules>
+        <module>component/authenticator</module>
+        <module>feature/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.analytics.feature</module>
+        <module>feature/org.wso2.carbon.extension.identity.authenticator.passwordpolicy.feature</module>
+    </modules>
 
     <dependencies>
         <dependency>
@@ -135,7 +127,7 @@
         <dependency>
             <groupId>org.wso2.carbon.identity.governance</groupId>
             <artifactId>org.wso2.carbon.identity.governance</artifactId>
-            <version>1.0.35</version>
+            <version>${carbon.identity.governance.version}</version>
         </dependency>
     </dependencies>
 
@@ -329,6 +321,7 @@
 
     <properties>
         <carbon.identity.framework.version>5.10.86</carbon.identity.framework.version>
+        <carbon.identity.governance.version>1.0.35</carbon.identity.governance.version>
         <commons-logging.version>4.4.3</commons-logging.version>
         <carbon.kernel.version>4.4.3</carbon.kernel.version>
         <oltu.version>1.0.0.wso2v2</oltu.version>

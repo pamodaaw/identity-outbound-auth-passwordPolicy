@@ -18,7 +18,7 @@
   -->
 
 <project name="create-sample-capps" default="zip" basedir="resources">
-    <property name="zip_name" value="password_reset_enforcer_artifacts"/>
+    <property name="zip_name" value="password_policy_artifacts"/>
     <property name="authenticator_target_dir" value="../../component/authenticator/target"/>
     <property name="is_feature_target_dir" value="target"/>
     <property name="is_analytics_feature_target_dir"
@@ -29,16 +29,16 @@
 
         <copy todir="${is_feature_target_dir}/${zip_name}/is">
             <fileset file="${authenticator_target_dir}/../src/main/resources/pwd-reset.jsp"/>
-            <fileset file="resources/org.wso2.carbon.identity.policy.password.PasswordChanges_1.0.0.json"/>
-            <fileset file="resources/PasswordPolicy-Publisher-wso2event-PasswordChanges.xml"/>
+            <fileset file="resources/org.wso2.carbon.identity.policy.password.PendingNotifications_1.0.0.json"/>
+            <fileset file="resources/PasswordPolicy-Publisher-wso2event-PendingNotifications.xml"/>
         </copy>
 
         <mkdir dir="${is_feature_target_dir}/${zip_name}/is-analytics"/>
 
         <copy todir="${is_feature_target_dir}/${zip_name}/is-analytics">
-            <fileset file="${is_analytics_feature_target_dir}/password_rotation_policy-1.0.0.car"/>
-            <fileset file="${is_analytics_feature_target_dir}/../resources/eventpublishers/PasswordRotationPolicy-Publisher-email-ExpiredPasswords-1.0.0.xml"/>
-            <fileset file="${is_analytics_feature_target_dir}/../resources/templates/password-rotation-policy-notifications.xml"/>
+            <fileset file="${is_analytics_feature_target_dir}/password_policy.car"/>
+            <fileset file="${is_analytics_feature_target_dir}/../resources/eventpublishers/PasswordPolicy-Publisher-email-Notifications-1.0.0.xml"/>
+            <fileset file="${is_analytics_feature_target_dir}/../resources/templates/password-policy-notifications.xml"/>
         </copy>
 
         <zip destfile="${is_feature_target_dir}/${zip_name}.zip">

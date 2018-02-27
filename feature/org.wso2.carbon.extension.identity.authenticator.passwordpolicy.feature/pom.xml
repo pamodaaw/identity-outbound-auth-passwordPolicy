@@ -27,9 +27,9 @@
     <artifactId>org.wso2.carbon.extension.identity.authenticator.passwordpolicy.feature</artifactId>
     <version>1.0.5-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>WSO2 Carbon - Identity PasswordPolicy Feature</name>
+    <name>WSO2 Carbon Extension - Password Policy - Feature</name>
     <url>http://wso2.org</url>
-    <description>This feature contains extension feature for PasswordPolicy</description>
+    <description>Password Policy Feature</description>
 
     <dependencies>
         <dependency>
